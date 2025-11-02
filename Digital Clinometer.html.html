@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Digital Clinometer & Height Calculator (Dark Theme)</title>
+    <!-- Load Tailwind CSS for modern, appealing aesthetics --><script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom Variables for Dark Theme */
+        :root {
+            --primary-color: #60a5fa; /* Sharp Blue */
+            --accent-color: #f87171; /* Sharp Red */
+            --eye-color: #4ade80; /* Sharp Green */
+            --bg-dark: #1f2937; /* Very dark background */
+            --card-dark: #374151; /* Slightly lighter card background */
+            --text-light: #e5e7eb;
+            --text-muted: #9ca3af;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-dark); /* Applied dark background */
+            color: var(--text-light); /* Default light gray text */
+        }
+
+        /* --- Clinometer Display Styles --- */
+        .clinometer-display {
+            width: 250px;
+            height: 125px;
+            border-radius: 125px 125px 0 0; 
+            border: 4px solid var(--primary-color);
+            border-bottom: none;
+            background: 
+                linear-gradient(to right, 
+                    #374151 0%, /* Start dark */
+                    #4b5563 50%, /* Mid-gray for slight depth */
+                    #374151 100% /* End dark */
+                );
+            position: relative;
+            box-shadow: inset 0 -3px 10px rgba(0, 0, 0, 0.5);
+            overflow: hidden;
+        }
+
+        /* Clinometer Tick Marks */
+        .clinometer-display::before {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 100%; /* Covers the whole semi-circle */
+            /* Radial gradient for tick marks */
+            background: radial-gradient(
+                closest-side circle at 50% 100%, 
+                transparent 90%, /* Inner transparent area */
+                rgba(255,255,255,0.1) 90% /* Outer white ring for ticks */
+            );
+            /* Mask to create actual tick lines */
+            mask-image: repeating-conic-gradient(
+                from 0deg at 50% 100%,
+                transparent 0deg 0.5deg, /* Tiny gap */
+                white 0.5deg 1.5deg /* Small tick */
+            );
+            /* Limit mask to +/- 90 degrees */
+            mask-image: conic-gradient(
+                from 270deg at 50% 100%, /* Start from bottom center */
+                transparent 0deg 0deg,
+                black 0deg 90deg, /* Right side */
+                transparent 90deg 90deg, /* Gap at top */
+                black 90deg 180deg, /* Left side */
+                transparent 180deg 180deg
+            );
+            mask-size: 200% 200%; /* To make ticks longer */
+            mask-position: 50% 100%;
+        }
+
+
+        .indicator {
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            width: 3px;
+            height: 125px;
+            background-color: var(--accent-color);
+            transform-origin: center bottom;
+            transform: translateX(-50%) rotate(0deg); 
+            transition: transform 0.1s ease-out;
+            z-index: 10;
+        }
+
+        .pivot {
+            position: absolute;
+            bottom: -8px;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background-color: var(--primary-color);
+            z-index: 15;
+            left: 50%;
+            transform: translateX(-50%);
+            box-shadow: 0 0 5px var(--primary-color); /* Neon glow effect */
+        }
+
+        /* Custom slider track */
+        .angle-slider {
+            -webkit-appearance: none;
+            appearance: none;
+            height: 8px;
+            background: #4b5563; /* Darker track */
+            outline: none;
+            opacity: 0.8;
+            transition: opacity .2s;
+            border-radius: 4px;
+        }
+        .angle-slider:hover {
+            opacity: 1;
+        }
+        .angle-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--primary-color);
+            cursor: pointer;
+            box-shadow: 0 0 8px var(--primary-color); /* Light thumb glow */
+        }
+        
+        /* Input styling for dark mode */
+        input[type="number"] {
+            background-color: #4b5563 !important;
+            color: var(--text-light) !important;
+            border-color: #6b7280 !important;
+        }
+        input[type="number"]:focus {
+            border-color: var(--primary-color) !important;
+            box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.5) !important;
+        }
+
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <div class="max-w-7xl mx-auto space-y-8">
+        <header class="text-center">
+            <h1 class="text-4xl font-extrabold text-gray-100">Precision Height Tool</h1>
+            <p class="text-lg text-gray-400">Simulated Clinometer & Trigonometry Calculator</p>
+        </header>
+
+        <!-- Main Grid Layout: Horizontal for wide screens --><div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            
+            <!-- Column 1: Clinometer and Controls --><div class="bg-gray-800 p-6 rounded-xl shadow-2xl space-y-6 flex flex-col items-center border border-gray-700">
+                <h2 class="text-2xl font-semibold text-gray-200 mb-4">Angle Measurement</h2>
+
+                <div class="flex flex-col items-center">
+                    <div class="clinometer-display">
+                        <div id="indicator" class="indicator"></div>
+                        <div class="pivot"></div>
+                    </div>
+                    
+                    <!-- Digital Angle Readout --><div id="angle-text" class="mt-6 text-5xl font-extrabold text-gray-100">
+                        0<span class="text-3xl align-top text-gray-400">°</span>
+                    </div>
+                </div>
+
+                <!-- Angle Slider Control --><div class="mt-6 space-y-3 w-full">
+                    <p class="text-sm font-medium text-gray-400 text-center">Simulated Tilt Angle (-90° to +90°)</p>
+                    <input type="range" id="angle-slider" class="angle-slider" min="-90" max="90" value="0" step="1">
+                    <button id="zero-button" class="w-full py-2 bg-green-500 text-gray-900 font-bold rounded-lg hover:bg-green-600 transition shadow-lg">
+                        Calibrate / Zero Angle (0°)
+                    </button>
+                </div>
+            </div>
+
+            <!-- Column 2: Height Calculator Inputs --><div class="bg-gray-800 p-6 rounded-xl shadow-2xl space-y-6 h-full flex flex-col border border-gray-700">
+                <h2 class="text-2xl font-semibold text-gray-200 mb-4">Height Calculator</h2>
+
+                <div class="space-y-4">
+                    <!-- Distance Input --><div>
+                        <label for="distance-input" class="block text-sm font-medium text-gray-300">Distance to Object (D) [meters]</label>
+                        <input type="number" id="distance-input" value="10" min="0" step="0.1"
+                               class="mt-1 block w-full rounded-lg border-gray-600 shadow-inner border p-3">
+                    </div>
+                    
+                    <!-- Eye Height Input --><div>
+                        <label for="eye-height-input" class="block text-sm font-medium text-gray-300">Your Eye Height (H_eye) [meters]</label>
+                        <input type="number" id="eye-height-input" value="1.7" min="0" step="0.1"
+                               class="mt-1 block w-full rounded-lg border-gray-600 shadow-inner border p-3">
+                    </div>
+                </div>
+
+                <!-- Results Display --><div class="mt-auto bg-gray-700 p-4 rounded-lg border border-blue-400/50 shadow-inner">
+                    <p class="text-sm font-medium text-blue-400">Calculated Height Above/Below Eye Level:</p>
+                    <p id="height-triangle" class="text-xl font-bold text-blue-300">0.00 m</p>
+                    <hr class="my-2 border-gray-600">
+                    <p class="text-sm font-medium text-blue-400">Total Object Height:</p>
+                    <p id="total-height" class="text-3xl font-extrabold text-blue-200">1.70 m</p>
+                </div>
+            </div>
+
+            <!-- Column 3: Live Triangle Diagram --><div class="bg-gray-800 p-6 rounded-xl shadow-2xl border border-gray-700">
+                <h2 class="text-2xl font-semibold text-gray-200 mb-4">Live Triangle Diagram</h2>
+                <div class="border border-gray-600 rounded-lg overflow-hidden bg-gray-900">
+                    <canvas id="triangle-canvas" width="300" height="300" class="w-full"></canvas>
+                </div>
+                <p class="mt-3 text-xs text-gray-400">The diagram visually represents the relationship between distance, angle, and height.</p>
+            </div>
+        </div>
+
+        <!-- New Section: Formulas Used --><div class="bg-gray-800 p-6 rounded-xl shadow-2xl border border-gray-700 mt-8">
+            <h2 class="text-2xl font-semibold text-gray-200 mb-4">Core Trigonometry Formula</h2>
+            <div class="space-y-6">
+                
+                <div class="text-center">
+                    <p class="font-semibold text-xl text-blue-300">Total Object Height Calculation:</p>
+                    <p class="text-4xl font-extrabold text-white py-2">$H = E + D \cdot \tan(\theta)$</p>
+                </div>
+                
+                <hr class="border-gray-700">
+
+                <p class="text-sm text-gray-400 text-center">
+                    This formula combines your **eye height** ($E$) with the calculated height above or below your eye level ($D \cdot \tan(\theta)$) to find the object's total height from the ground ($H$).
+                </p>
+
+                <h3 class="text-xl font-semibold text-gray-200">Variable Key</h3>
+                <ul class="text-gray-400 text-base space-y-2 list-disc list-inside">
+                    <li><strong class="text-blue-300">$H$:</strong> Total Object Height.</li>
+                    <li><strong class="text-blue-300">$E$:</strong> Your measured Eye Height.</li>
+                    <li><strong class="text-blue-300">$D$:</strong> Distance from you to the object.</li>
+                    <li><strong class="text-blue-300">$\theta$:</strong> The measured Angle of elevation or depression.</li>
+                    <li><span class="text-red-400 text-sm">*Note:</span> The angle $\theta$ is automatically converted from degrees to radians for the $\tan$ function in the calculation.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer Added -->
+    <footer class="mt-10 mb-4 text-center text-sm text-gray-500">
+        Created by Vrishank Kansara
+    </footer>
+    
+    <script>
+        // DOM Elements
+        const indicator = document.getElementById('indicator');
+        const angleText = document.getElementById('angle-text');
+        const angleSlider = document.getElementById('angle-slider');
+        const distanceInput = document.getElementById('distance-input');
+        const eyeHeightInput = document.getElementById('eye-height-input');
+        const zeroButton = document.getElementById('zero-button');
+        const heightTriangleDisplay = document.getElementById('height-triangle');
+        const totalHeightDisplay = document.getElementById('total-height');
+        const canvas = document.getElementById('triangle-canvas');
+        const ctx = canvas.getContext('2d');
+
+        // Color Variables used in Canvas drawing (must match CSS root)
+        const PRIMARY_COLOR = '#60a5fa'; // Blue
+        const ACCENT_COLOR = '#f87171'; // Red
+        const EYE_COLOR = '#4ade80';    // Green
+        const TEXT_COLOR = '#e5e7eb';   // Light text for dark canvas
+        const MUTED_COLOR = '#9ca3af';  // Muted gray for dashed lines
+
+        /**
+         * Core function: Calculates height based on trigonometry and draws the diagram.
+         */
+        function calculateAndDraw() {
+            const angleDeg = parseFloat(angleSlider.value);
+            const distance = parseFloat(distanceInput.value);
+            let eyeHeight = parseFloat(eyeHeightInput.value);
+
+            // Use 1.7m as a safe default for eye height if the input is cleared/invalid.
+            const safeEyeHeight = isNaN(eyeHeight) ? 1.7 : eyeHeight;
+
+            // Basic validation for distance and eyeHeight
+            if (isNaN(distance) || distance <= 0) { 
+                heightTriangleDisplay.textContent = 'Invalid Distance'; 
+                totalHeightDisplay.textContent = 'Invalid Distance';
+                drawTriangle(angleDeg, 0, 0, safeEyeHeight, safeEyeHeight); // Draw a fallback diagram
+                return;
+            }
+             if (isNaN(eyeHeight)) { 
+                eyeHeight = safeEyeHeight; // Use default for calculation if input is bad
+            }
+
+            // 1. Update Clinometer Display
+            angleText.innerHTML = `${angleDeg}<span class="text-3xl align-top text-gray-400">°</span>`;
+            indicator.style.transform = `translateX(-50%) rotate(${angleDeg}deg)`;
+
+            // --- Trigonometric Calculation ---
+            const angleRad = angleDeg * (Math.PI / 180);
+            
+            // Height of the opposite side (H_opp) - This is still needed for the 'Above/Below Eye Level' readout
+            let hOpposite = distance * Math.tan(angleRad);
+            
+            // Total height of the object (H_total)
+            let totalHeight = eyeHeight + hOpposite;
+            
+            // Ensure total height is not negative (if looking down further than eye height)
+            if (totalHeight < 0) {
+                totalHeight = 0;
+            }
+
+            // 2. Update Result Displays
+            heightTriangleDisplay.textContent = `${hOpposite.toFixed(2)} m`;
+            totalHeightDisplay.textContent = `${totalHeight.toFixed(2)} m`;
+
+            // --- Live Triangle Diagram (Canvas) ---
+            drawTriangle(angleDeg, distance, hOpposite, eyeHeight, totalHeight);
+        }
+
+        /**
+         * Draws the live right-angled triangle diagram on the canvas.
+         */
+        function drawTriangle(angleDeg, distance, hOpposite, eyeHeight, totalHeight) {
+            const W = canvas.width;
+            const H = canvas.height;
+            const PADDING = 30; // Padding from canvas edges
+            ctx.clearRect(0, 0, W, H); // Clear the canvas
+
+            // --- Scaling Logic ---
+            // Determine max dimensions to fit the diagram
+            const maxTotalHeightForScale = Math.max(Math.abs(hOpposite), eyeHeight, 0.1); // Use hOpposite for scaling, as total can be small.
+            const maxDimension = Math.max(distance, maxTotalHeightForScale, 0.1); 
+            const scale = (W - 2 * PADDING) / maxDimension * 0.7; // Factor to scale meters to pixels
+
+            // --- Define key points relative to canvas coordinates ---
+            
+            // 1. Viewer's position on the ground (Origin for X)
+            const GROUND_X = PADDING; 
+            const GROUND_Y = H - PADDING;
+
+            // 2. Viewer's Eye Position (Vertex V)
+            const V_X = GROUND_X; 
+            const V_Y = GROUND_Y - (eyeHeight * scale); // Moves up from the ground line
+
+            // 3. Object Base Position (Ground point D)
+            const D_X = GROUND_X + (distance * scale);
+            const D_Y = GROUND_Y;
+
+            // 4. Object Top Position (Vertex E)
+            const E_X = D_X;
+            const E_Y = GROUND_Y - (totalHeight * scale); // Total height relative to ground
+
+            // 5. Eye Level at Object (Point M) - The 90 degree corner of the triangle
+            const M_X = D_X;
+            const M_Y = V_Y; // Same Y-coordinate as the eye
+
+            // --- Drawing Setup ---
+            ctx.lineWidth = 2;
+            
+            // 1. Draw Viewer's Body (Eye Height)
+            ctx.beginPath();
+            ctx.strokeStyle = EYE_COLOR;
+            ctx.moveTo(GROUND_X, GROUND_Y); // Feet
+            ctx.lineTo(V_X, V_Y);           // Eye
+            ctx.stroke();
+
+            // Add an eye icon
+            ctx.fillStyle = EYE_COLOR;
+            ctx.beginPath();
+            ctx.arc(V_X, V_Y, 4, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 2. Draw Object (Total Height)
+            ctx.beginPath();
+            ctx.strokeStyle = TEXT_COLOR;
+            ctx.moveTo(D_X, D_Y); // Base
+            ctx.lineTo(E_X, E_Y); // Top
+            ctx.stroke();
+
+            // Add an object top icon
+            ctx.fillStyle = TEXT_COLOR;
+            ctx.beginPath();
+            ctx.arc(E_X, E_Y, 4, 0, Math.PI * 2);
+            ctx.fill();
+
+
+            // 3. Draw Ground Line
+            ctx.beginPath();
+            ctx.strokeStyle = TEXT_COLOR;
+            ctx.moveTo(GROUND_X, GROUND_Y);
+            ctx.lineTo(D_X, D_Y);
+            ctx.stroke();
+
+            // --- Dashed Lines for Reference ---
+            ctx.strokeStyle = MUTED_COLOR;
+            ctx.setLineDash([5, 5]); // Make lines dashed
+
+            // Eye Level Horizontal Line (V to M)
+            ctx.beginPath();
+            ctx.moveTo(V_X, V_Y);
+            ctx.lineTo(M_X, M_Y);
+            ctx.stroke();
+
+            // Vertical line from M to Ground (if different from object base)
+            if (M_Y !== D_Y) { // Only draw if eye level isn't directly on ground
+                ctx.beginPath();
+                ctx.moveTo(M_X, M_Y);
+                ctx.lineTo(D_X, D_Y);
+                ctx.stroke();
+            }
+
+            ctx.setLineDash([]); // Reset to solid lines
+
+            // 4. Draw the Trigonometric Triangle (V-M-E)
+            ctx.beginPath();
+            ctx.fillStyle = 'rgba(96, 165, 250, 0.1)'; // Semi-transparent blue fill
+            ctx.strokeStyle = PRIMARY_COLOR;
+
+            // Draw the lines forming the main triangle
+            ctx.moveTo(V_X, V_Y); // From Eye
+            ctx.lineTo(M_X, M_Y); // To Eye-level at object
+            ctx.lineTo(E_X, E_Y); // To Top of object
+            ctx.lineTo(V_X, V_Y); // Back to Eye
+            ctx.fill();
+            ctx.stroke();
+
+            // Add right angle indicator at M
+            ctx.strokeStyle = PRIMARY_COLOR;
+            ctx.beginPath();
+            const angleIndicatorSize = 10;
+            if (angleDeg >= 0) { // Object above eye level or at eye level
+                ctx.moveTo(M_X - angleIndicatorSize, M_Y);
+                ctx.lineTo(M_X - angleIndicatorSize, M_Y + angleIndicatorSize);
+                ctx.lineTo(M_X, M_Y + angleIndicatorSize);
+            } else { // Object below eye level
+                ctx.moveTo(M_X - angleIndicatorSize, M_Y);
+                ctx.lineTo(M_X - angleIndicatorSize, M_Y - angleIndicatorSize);
+                ctx.lineTo(M_X, M_Y - angleIndicatorSize);
+            }
+            ctx.stroke();
+
+
+            // --- Labels ---
+            ctx.font = '12px Inter';
+            
+            // Label Distance (D)
+            ctx.fillStyle = TEXT_COLOR;
+            ctx.fillText(`D: ${distance.toFixed(1)} m`, GROUND_X + (D_X - GROUND_X) / 2 - 20, GROUND_Y + 20);
+            
+            // Label Eye Height (H_eye)
+            ctx.fillStyle = EYE_COLOR;
+            const eyeHeightLabelY = V_Y + (GROUND_Y - V_Y) / 2;
+            ctx.fillText(`H_eye: ${eyeHeight.toFixed(1)} m`, V_X - 60, eyeHeightLabelY < GROUND_Y - 10 ? eyeHeightLabelY : GROUND_Y - 10);
+
+
+            // Label Total Height (H_total)
+            ctx.fillStyle = PRIMARY_COLOR;
+            ctx.fillText(`Total H: ${totalHeight.toFixed(2)} m`, D_X + 10, E_Y + 10); 
+            
+            // Label Angle (A)
+            ctx.fillStyle = ACCENT_COLOR;
+            // Place angle text near the eye/vertex
+            if (angleDeg > 0) { // Angle of elevation
+                 ctx.fillText(`${angleDeg}°`, V_X + 10, V_Y - 10);
+            } else if (angleDeg < 0) { // Angle of depression
+                 ctx.fillText(`${Math.abs(angleDeg)}°`, V_X + 10, V_Y + 20);
+            } else { // Angle is 0
+                 ctx.fillText(`0°`, V_X + 10, V_Y - 10);
+            }
+        }
+
+        /**
+         * Resets the angle slider to 0 degrees and updates the display.
+         */
+        function zeroAngle() {
+            angleSlider.value = 0;
+            calculateAndDraw();
+        }
+
+        // --- Event Listeners ---
+        angleSlider.addEventListener('input', calculateAndDraw);
+        distanceInput.addEventListener('input', calculateAndDraw);
+        eyeHeightInput.addEventListener('input', calculateAndDraw);
+        zeroButton.addEventListener('click', zeroAngle);
+
+        // Initial call to set up the display and calculator on load
+        window.onload = calculateAndDraw;
+    </script>
+</body>
+</html>
